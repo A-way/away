@@ -1,3 +1,3 @@
 # Away
 
-Away is just AWAY!
+A way to Away!

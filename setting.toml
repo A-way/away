@@ -1,0 +1,11 @@
+# Away's settings
+
+[security]
+  passkey = "Change Me Please!"
+
+[local]
+  remote = "http://localhost:8080"
+  port = 1080
+
+[remote]
+  portname = "PORT"

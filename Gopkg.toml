@@ -20,3 +20,16 @@
 #  name = "github.com/x/y"
 #  version = "2.4.0"
 
+[[constraint]]
+  name = "golang.org/x/net"
+  branch = "master"
+  source = "github.com/golang/net"
+
+[[constraint]]
+  name = "golang.org/x/crypto"
+  branch = "master"
+  source = "github.com/golang/crypto"
+
+[[constraint]]
+  name = "github.com/pelletier/go-toml"
+  version = "v1.1.0"
