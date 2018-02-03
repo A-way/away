@@ -1,50 +1,62 @@
 package main
 
 import (
-	"log"
+	"errors"
 	"net"
 	"net/url"
-
-	toml "github.com/pelletier/go-toml"
+	"strconv"
 )
 
-type Setting struct {
-	socksAddr net.TCPAddr
-	remote    string
-	origin    string
-	portname  string
-	sec       *Security
+type Settings struct {
+	rAddr  net.TCPAddr
+	lAddr  net.TCPAddr
+	remote string
+	origin string
+	sec    *Security
 }
 
-func loadSetting() *Setting {
-	t, err := toml.LoadFile("setting.toml")
-	if err != nil {
-		log.Fatal("Load setting.toml failure:", err)
-	}
+func NewSettingWith(rp, lp, pk, ru string) (s Settings, err error) {
+	rp = defaultVal(rp, "8080")
+	lp = defaultVal(lp, "1080")
+	pk = defaultVal(pk, "AwayPasskey")
+	ru = defaultVal(ru, "http://localhost:"+rp)
 
-	port := t.Get("local.port").(int64)
-	socksAddr := net.TCPAddr{Port: int(port)}
-
-	u, err := url.Parse(t.Get("local.remote").(string))
+	var srp, slp int
+	srp, err = strconv.Atoi(rp)
 	if err != nil {
-		log.Fatal("Parse local.remote failure", err)
+		err = errors.New("wrong -rp " + err.Error())
+		return
 	}
-	origin := u.String()
+	ra := net.TCPAddr{Port: srp}
+	slp, err = strconv.Atoi(lp)
+	if err != nil {
+		err = errors.New("wrong -lp " + err.Error())
+		return
+	}
+	la := net.TCPAddr{Port: slp}
+
+	var u *url.URL
+	u, err = url.Parse(ru)
 	scheme := "ws"
+	ori := u.String()
 	if u.Scheme == "https" {
 		scheme = "wss"
 	}
-	remote := scheme + "://" + u.Host + "/_a"
+	rmo := scheme + "://" + u.Host + "/_a"
 
-	portname := t.Get("remote.portname").(string)
-
-	passkey := t.Get("security.passkey").(string)
-	sec, err := NewSecurity(passkey)
+	var sec *Security
+	sec, err = NewSecurity(pk)
 	if err != nil {
-		log.Fatal("Cipher init failure:", err)
+		return
 	}
 
-	s := &Setting{socksAddr, remote, origin, portname, sec}
-	return s
+	s = Settings{ra, la, rmo, ori, sec}
+	return s, nil
+}
 
+func defaultVal(origin, value string) string {
+	if origin != "" {
+		return origin
+	}
+	return value
 }

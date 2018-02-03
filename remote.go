@@ -5,25 +5,19 @@ import (
 	"log"
 	"net"
 	"net/http"
-	"os"
 
 	"golang.org/x/net/websocket"
 )
 
-func remote(setting *Setting) {
-	port := os.Getenv(setting.portname)
-	if port == "" {
-		port = "8080"
-	}
-
+func remote(sts Settings) {
 	srv := &http.Server{
-		Addr: net.JoinHostPort("", port),
+		Addr: sts.rAddr.String(),
 	}
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "A way to Away!")
 	})
-	http.Handle("/_a", websocket.Handler(secureHandler(setting.sec)))
+	http.Handle("/_a", websocket.Handler(secureHandler(sts.sec)))
 
 	log.Println("Remote start on", srv.Addr)
 	log.Fatal("Remote start failure:", srv.ListenAndServe())

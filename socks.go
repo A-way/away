@@ -83,15 +83,15 @@ func (a *Addr) String() string {
 	return net.JoinHostPort(host, port)
 }
 
-func socks(setting *Setting) {
+func socks(sts Settings) {
 
-	addr := setting.socksAddr
+	addr := sts.lAddr
 	l, err := net.Listen(addr.Network(), addr.String())
 	if err != nil {
 		log.Fatal("Away start failure: ", err)
 	}
 	defer l.Close()
-	log.Printf("Away %s ~ %s", l.Addr(), setting.remote)
+	log.Printf("Away %s ~ %s", l.Addr(), sts.remote)
 
 	for {
 		oc, err := l.Accept()
@@ -173,12 +173,12 @@ func socks(setting *Setting) {
 			}
 
 			// Relay to remote
-			ws, err := websocket.Dial(setting.remote, "", setting.origin)
+			ws, err := websocket.Dial(sts.remote, "", sts.origin)
 			if err != nil {
 				log.Println("Remote dial failure:", err)
 				return
 			}
-			wss := setting.sec.secure(ws)
+			wss := sts.sec.secure(ws)
 			defer wss.Close()
 
 			if _, err := wss.Write(addr.addr); err != nil {
