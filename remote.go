@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"html/template"
 	"log"
 	"net"
 	"net/http"
@@ -14,8 +14,11 @@ func remote(sts Settings) {
 		Addr: sts.rAddr.String(),
 	}
 
+	fs := http.FileServer(http.Dir("asset"))
+	http.Handle("/static/", fs)
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "A way to Away!")
+		tmpl := template.Must(template.ParseFiles("asset/index.html"))
+		tmpl.Execute(w, nil)
 	})
 	http.Handle("/_a", websocket.Handler(secureHandler(sts.sec)))
 
