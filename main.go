@@ -2,7 +2,8 @@ package main
 
 import (
 	"flag"
-	"log"
+
+	log "github.com/sirupsen/logrus"
 )
 
 func main() {
@@ -12,6 +13,8 @@ func main() {
 	pk := flag.String("pk", "", "Passkey to do crypto. eg: -pk \"Away Passkey\"")
 	ru := flag.String("ru", "", "Remote Url to connect. eg: -ru http://away.remote")
 	flag.Parse()
+
+	log.SetFormatter(&log.TextFormatter{FullTimestamp: true, TimestampFormat: "2006/01/02 15:04:05.000"})
 
 	setting, err := NewSettingWith(*rp, *lp, *pk, *ru)
 	if err != nil {

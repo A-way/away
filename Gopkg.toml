@@ -31,5 +31,10 @@
   source = "github.com/golang/crypto"
 
 [[constraint]]
-  name = "github.com/pelletier/go-toml"
-  version = "v1.1.0"
+  name = "github.com/sirupsen/logrus"
+  branch = "master"
+
+[[override]]
+  name = "golang.org/x/sys"
+  branch = "master"
+  source = "github.com/golang/sys"

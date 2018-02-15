@@ -2,15 +2,18 @@
 
 
 [[projects]]
-  name = "github.com/pelletier/go-toml"
+  branch = "master"
+  name = "github.com/sirupsen/logrus"
   packages = ["."]
-  revision = "acdc4509485b587f5e675510c4f2c63e90ff68a8"
-  version = "v1.1.0"
+  revision = "8c0189d9f6bbf301e5d055d34268156b317016af"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/crypto"
-  packages = ["pbkdf2"]
+  packages = [
+    "pbkdf2",
+    "ssh/terminal"
+  ]
   revision = "a6600008915114d9c087fad9f03d75087b1a74df"
   source = "github.com/golang/crypto"
 
@@ -21,9 +24,19 @@
   revision = "5ccada7d0a7ba9aeb5d3aca8d3501b4c2a509fec"
   source = "github.com/golang/net"
 
+[[projects]]
+  branch = "master"
+  name = "golang.org/x/sys"
+  packages = [
+    "unix",
+    "windows"
+  ]
+  revision = "37707fdb30a5b38865cfb95e5aab41707daec7fd"
+  source = "github.com/golang/sys"
+
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "0a65e6e41faea25cb64ce413239f40d4c504b2560145614b3cb2dbb737e2288b"
+  inputs-digest = "a705ba80c526ba44af3ac35e2db2f35319f660bcf18537c58fdc4088b8b1fc6a"
   solver-name = "gps-cdcl"
   solver-version = 1

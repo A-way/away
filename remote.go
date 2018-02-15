@@ -2,9 +2,10 @@ package main
 
 import (
 	"html/template"
-	"log"
 	"net"
 	"net/http"
+
+	log "github.com/sirupsen/logrus"
 
 	"golang.org/x/net/websocket"
 )
@@ -22,8 +23,8 @@ func remote(sts Settings) {
 	})
 	http.Handle("/_a", websocket.Handler(secureHandler(sts.sec)))
 
-	log.Println("Remote start on", srv.Addr)
-	log.Fatal("Remote start failure:", srv.ListenAndServe())
+	log.Info("Remote start on: ", srv.Addr)
+	log.Fatal("Remote start failure: ", srv.ListenAndServe())
 }
 
 func secureHandler(sec *Security) func(*websocket.Conn) {
@@ -33,24 +34,24 @@ func secureHandler(sec *Security) func(*websocket.Conn) {
 
 		addr, err := ReadAddr(wss, "tcp")
 		if err != nil {
-			log.Println("Addr read failure:", err)
+			log.Warn("Addr read failure: ", err)
 			return
 		}
 
 		// Relay to target
 		tc, err := net.Dial(addr.Network(), addr.String())
 		if err != nil {
-			log.Println("Target dial failure:", err)
+			log.Warn("Target dial failure: ", err)
 			return
 		}
 		defer tc.Close()
 
 		tc.(*net.TCPConn).SetKeepAlive(true)
 		if nout, nin, err := relay(tc, wss); err != nil {
-			log.Println("Relay target failure:", err)
+			log.Warn("Relay target failure: ", err)
 			return
 		} else {
-			log.Printf("Away: %s ~ %s <%d %d>", wss.RemoteAddr(), addr.String(), nin, nout)
+			log.Infof("Away: %s ~ %s <%d %d>", wss.RemoteAddr(), addr.String(), nin, nout)
 		}
 	}
 }

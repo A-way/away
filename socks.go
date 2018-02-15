@@ -2,10 +2,11 @@ package main
 
 import (
 	"io"
-	"log"
 	"net"
 	"strconv"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 
 	"golang.org/x/net/websocket"
 )
@@ -91,12 +92,12 @@ func socks(sts Settings) {
 		log.Fatal("Away start failure: ", err)
 	}
 	defer l.Close()
-	log.Printf("Away %s ~ %s", l.Addr(), sts.remote)
+	log.Infof("Away %s ~ %s", l.Addr(), sts.remote)
 
 	for {
 		oc, err := l.Accept()
 		if err != nil {
-			log.Println("Accepting connection failure: ", err)
+			log.Warn("Accepting connection failure: ", err)
 			continue
 		}
 
@@ -153,10 +154,10 @@ func socks(sts Settings) {
 
 			addr, err := ReadAddr(oc, "tcp")
 			if err != nil {
-				log.Println("Read addr failure:", err)
+				log.Warn("Read addr failure: ", err)
 				return
 			}
-			log.Printf("Away~ %s->%s\n", oc.RemoteAddr().String(), addr.String())
+			log.Infof("Away~ %s->%s", oc.RemoteAddr().String(), addr.String())
 
 			// Replies
 			// +----+-----+-------+------+----------+----------+
@@ -175,21 +176,21 @@ func socks(sts Settings) {
 			// Relay to remote
 			ws, err := websocket.Dial(sts.remote, "", sts.origin)
 			if err != nil {
-				log.Println("Remote dial failure:", err)
+				log.Warn("Remote dial failure: ", err)
 				return
 			}
 			wss := sts.sec.secure(ws)
 			defer wss.Close()
 
 			if _, err := wss.Write(addr.addr); err != nil {
-				log.Println("Write add failure:", err)
+				log.Warn("Write addr failure: ", err)
 				return
 			}
 			if nout, nin, err := relay(wss, oc); err != nil {
-				log.Println("Relay remote failure:", err)
+				log.Warn("Relay remote failure: ", err)
 				return
 			} else {
-				log.Printf("Relay: %s <%d %d>", addr.String(), nin, nout)
+				log.Infof("Relay: %s <%d %d>", addr.String(), nin, nout)
 			}
 		}(oc)
 	}
