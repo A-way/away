@@ -15,7 +15,7 @@ type Settings struct {
 	sec    *Security
 }
 
-func NewSettingWith(rp, lp, pk, ru string) (s Settings, err error) {
+func NewSettingsWith(rp, lp, pk, ru string) (s Settings, err error) {
 	rp = defaultVal(rp, "8080")
 	lp = defaultVal(lp, "1080")
 	pk = defaultVal(pk, "AwayPasskey")

@@ -16,17 +16,17 @@ func main() {
 
 	log.SetFormatter(&log.TextFormatter{FullTimestamp: true, TimestampFormat: "2006/01/02 15:04:05.000"})
 
-	setting, err := NewSettingWith(*rp, *lp, *pk, *ru)
+	settings, err := NewSettingsWith(*rp, *lp, *pk, *ru)
 	if err != nil {
 		log.Fatal(err)
 	}
 	if *rp != "" && *lp != "" {
-		go socks(setting)
-		remote(setting)
+		go socks(settings)
+		remote(settings)
 	} else if *rp != "" {
-		remote(setting)
+		remote(settings)
 	} else {
-		socks(setting)
+		socks(settings)
 	}
 
 }
