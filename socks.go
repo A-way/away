@@ -38,11 +38,6 @@ func ReadAddr(r io.Reader, network string) (addr *Addr, err error) {
 
 	var n int
 	switch atyp {
-	case atypIPv4:
-		if _, e := io.ReadFull(r, buf[1:1+net.IPv4len+2]); e != nil {
-			return nil, e
-		}
-		n = 1 + net.IPv4len + 2
 	case atypDomainName:
 		if _, e := io.ReadFull(r, buf[1:2]); e != nil {
 			return nil, e
@@ -51,6 +46,11 @@ func ReadAddr(r io.Reader, network string) (addr *Addr, err error) {
 			return nil, e
 		}
 		n = 2 + int(buf[1]) + 2
+	case atypIPv4:
+		if _, e := io.ReadFull(r, buf[1:1+net.IPv4len+2]); e != nil {
+			return nil, e
+		}
+		n = 1 + net.IPv4len + 2
 	case atypIPv6:
 		if _, e := io.ReadFull(r, buf[1:1+net.IPv6len+2]); e != nil {
 			return nil, e
@@ -73,10 +73,10 @@ func (a *Addr) String() string {
 	atyp := buf[0]
 	var host string
 	switch atyp {
-	case atypIPv4:
-		host = net.IP(buf[1 : 1+net.IPv4len]).String()
 	case atypDomainName:
 		host = string(buf[2 : 2+int(buf[1])])
+	case atypIPv4:
+		host = net.IP(buf[1 : 1+net.IPv4len]).String()
 	case atypIPv6:
 		host = net.IP(buf[1 : 1+net.IPv6len]).String()
 	}
