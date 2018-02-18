@@ -6,7 +6,6 @@ import (
 	"net/http"
 
 	log "github.com/sirupsen/logrus"
-
 	"golang.org/x/net/websocket"
 )
 
