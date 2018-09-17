@@ -3,6 +3,7 @@ package main
 import (
 	"io"
 	"net"
+	"net/url"
 	"strconv"
 	"time"
 
@@ -20,6 +21,12 @@ const (
 	cmdConnect = 1
 	cmdBind    = 2
 	cmdUdp     = 3
+)
+
+const (
+	repSucceeded       = 0
+	repNotAllowed      = 2
+	repCmdNotSupported = 7
 )
 
 type Addr struct {
@@ -67,7 +74,7 @@ func (a *Addr) Network() string {
 	return a.network
 }
 
-func (a *Addr) String() string {
+func (a *Addr) Host() string {
 	buf := a.addr
 	atyp := buf[0]
 	var host string
@@ -79,25 +86,87 @@ func (a *Addr) String() string {
 	case atypIPv6:
 		host = net.IP(buf[1 : 1+net.IPv6len]).String()
 	}
-	port := strconv.Itoa((int(buf[len(buf)-2]) << 8) | int(buf[len(buf)-1]))
-	return net.JoinHostPort(host, port)
+	return host
 }
 
-func socks(sts Settings) {
+func (a *Addr) String() string {
+	buf := a.addr
+	port := strconv.Itoa((int(buf[len(buf)-2]) << 8) | int(buf[len(buf)-1]))
+	return net.JoinHostPort(a.Host(), port)
+}
 
-	addr := sts.lAddr
-	l, err := net.Listen(addr.Network(), addr.String())
+type SocksSrv struct {
+	listener net.Listener
+	away     *Away
+
+	settings *Settings
+	remote   string
+	origin   string
+	security *Security
+
+	stop    chan struct{}
+	stopped chan struct{}
+}
+
+func NewSocksSrv(s *Settings, a *Away) (*SocksSrv, error) {
+	u, err := url.Parse(s.Remote)
 	if err != nil {
-		log.Fatal("Away start failure: ", err)
+		return nil, err
 	}
-	defer l.Close()
-	log.Infof("Away %s ~ %s", l.Addr(), sts.remote)
+	scheme := "ws"
+	if u.Scheme == "https" {
+		scheme = "wss"
+	}
+	remote := scheme + "://" + u.Host + "/_a"
+	origin := u.String()
+
+	security, err := NewSecurity(s.Passkey)
+	if err != nil {
+		return nil, err
+	}
+
+	l, err := net.Listen("tcp", ":"+s.Port)
+	if err != nil {
+		return nil, err
+	}
+
+	srv := &SocksSrv{
+		listener: l,
+		away:     a,
+		settings: s,
+		remote:   remote,
+		origin:   origin,
+		security: security,
+		stop:     make(chan struct{}),
+		stopped:  make(chan struct{})}
+
+	return srv, nil
+}
+
+func (s *SocksSrv) Stop() {
+	go func() {
+		close(s.stop)
+		s.listener.Close()
+	}()
+	<-s.stopped
+}
+
+func (s *SocksSrv) Start() {
+	l := s.listener
+
+	log.Infof("Away %s %c %s", l.Addr(), s.away.Mode(), s.remote)
 
 	for {
 		oc, err := l.Accept()
 		if err != nil {
-			log.Warn("Accepting connection failure: ", err)
-			continue
+			select {
+			case <-s.stop:
+				close(s.stopped)
+				return
+			default:
+				log.Warn("Accepting connection failure: ", err)
+				continue
+			}
 		}
 
 		go func(oc net.Conn) {
@@ -105,7 +174,7 @@ func socks(sts Settings) {
 				oc.Close()
 			}()
 
-			oc.(*net.TCPConn).SetKeepAlive(true)
+			keepAlive(oc)
 
 			buf := make([]byte, 300)
 
@@ -156,65 +225,95 @@ func socks(sts Settings) {
 				log.Warn("Read addr failure: ", err)
 				return
 			}
-			log.Infof("Away~ %s->%s", oc.RemoteAddr().String(), addr.String())
 
 			// Replies
-			// +----+-----+-------+------+----------+----------+
-			// |VER | REP |  RSV  | ATYP | BND.ADDR | BND.PORT |
-			// +----+-----+-------+------+----------+----------+
-			// | 1  |  1  | X'00' |  1   | Variable |    2     |
-			// +----+-----+-------+------+----------+----------+
-
+			m := s.away.ResloveMode(addr)
 			switch cmd {
 			case cmdConnect:
-				oc.Write([]byte{5, 0, 0, 1, 0, 0, 0, 0, 0, 0})
+				var rep byte = repSucceeded
+				if m == ModeDrop {
+					rep = repNotAllowed
+				}
+				reply(oc, rep)
 			default:
+				reply(oc, repCmdNotSupported)
 				return
 			}
 
 			// Relay to remote
-			ws, err := websocket.Dial(sts.remote, "", sts.origin)
-			if err != nil {
-				log.Warn("Remote dial failure: ", err)
-				return
-			}
-			wss := sts.sec.secure(ws)
-			defer wss.Close()
-
-			if _, err := wss.Write(addr.addr); err != nil {
-				log.Warn("Write addr failure: ", err)
-				return
-			}
-			if nout, nin, err := relay(wss, oc); err != nil {
-				log.Warn("Relay remote failure: ", err)
-				return
-			} else {
-				log.Infof("Relay: %s <%d %d>", addr.String(), nin, nout)
-			}
+			s.route(oc, addr, m)
 		}(oc)
 	}
 }
 
-type signal struct {
+func reply(conn net.Conn, rep byte) (int, error) {
+	// +----+-----+-------+------+----------+----------+
+	// |VER | REP |  RSV  | ATYP | BND.ADDR | BND.PORT |
+	// +----+-----+-------+------+----------+----------+
+	// | 1  |  1  | X'00' |  1   | Variable |    2     |
+	// +----+-----+-------+------+----------+----------+
+	return conn.Write([]byte{5, rep, 0, atypIPv4, 0, 0, 0, 0, 0, 0})
+}
+
+func (s *SocksSrv) route(conn net.Conn, addr *Addr, mode rune) {
+	log.Infof("%c %s->%s", mode, conn.RemoteAddr().String(), addr.String())
+
+	var ac net.Conn
+	if mode == ModeRule || mode == ModePass {
+		dc, err := net.Dial(addr.Network(), addr.String())
+		if err != nil {
+			log.Warnf("Dial %s failure: %s", addr.String(), err)
+			return
+		}
+		ac = dc
+		defer ac.Close()
+
+	} else if mode == ModeAway {
+		ws, err := websocket.Dial(s.remote, "", s.origin)
+		if err != nil {
+			log.Warn("Remote dial failure: ", err)
+			return
+		}
+		ac = s.security.secure(ws)
+		defer ac.Close()
+
+		if _, err := ac.Write(addr.addr); err != nil {
+			log.Warn("Write addr failure: ", err)
+			return
+		}
+	} else {
+		conn.Close()
+		log.Infof("%c %s", mode, addr.String())
+		return
+	}
+
+	nout, nin, err := relay(ac, conn)
+	if err != nil {
+		log.Warn("Relay remote failure: ", err)
+	}
+	log.Infof("%c %s->%s <%d %d>", mode, conn.RemoteAddr().String(), addr.String(), nin, nout)
+}
+
+type relayResult struct {
 	n int64
 	e error
 }
 
 func relay(wf, rf net.Conn) (nout, nin int64, err error) {
 	timeout := 30 * time.Second
-	s := make(chan signal)
+	res := make(chan relayResult)
 	go func() {
 		nin, err = timeoutCopy(rf, wf, timeout)
 		if e, ok := err.(net.Error); ok && e.Timeout() {
 			err = nil
 		}
-		s <- signal{nin, err}
+		res <- relayResult{nin, err}
 	}()
 	nout, err = timeoutCopy(wf, rf, timeout)
 	if e, ok := err.(net.Error); ok && e.Timeout() {
 		err = nil
 	}
-	r := <-s
+	r := <-res
 
 	if err == nil {
 		err = r.e
@@ -250,4 +349,11 @@ func timeoutCopy(dst, src net.Conn, timeout time.Duration) (written int64, err e
 		}
 	}
 	return written, err
+}
+
+func keepAlive(conn net.Conn) {
+	if tcp, ok := conn.(*net.TCPConn); ok {
+		tcp.SetKeepAlive(true)
+		tcp.SetKeepAlivePeriod(60 * time.Second)
+	}
 }

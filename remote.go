@@ -9,9 +9,14 @@ import (
 	"golang.org/x/net/websocket"
 )
 
-func remote(sts Settings) {
+func Remote(s *Settings) {
+	sec, err := NewSecurity(s.Passkey)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	srv := &http.Server{
-		Addr: sts.rAddr.String(),
+		Addr: ":" + s.Port,
 	}
 
 	fs := http.FileServer(http.Dir("asset"))
@@ -20,7 +25,7 @@ func remote(sts Settings) {
 		tmpl := template.Must(template.ParseFiles("asset/index.html"))
 		tmpl.Execute(w, nil)
 	})
-	http.Handle("/_a", websocket.Handler(secureHandler(sts.sec)))
+	http.Handle("/_a", websocket.Handler(secureHandler(sec)))
 
 	log.Info("Remote start on: ", srv.Addr)
 	log.Fatal("Remote start failure: ", srv.ListenAndServe())

@@ -1,62 +1,60 @@
 package main
 
 import (
-	"errors"
-	"net"
-	"net/url"
+	"encoding/gob"
+	"os"
+	"path/filepath"
 	"strconv"
+	"time"
 )
 
 type Settings struct {
-	rAddr  net.TCPAddr
-	lAddr  net.TCPAddr
-	remote string
-	origin string
-	sec    *Security
+	Remote  string
+	Passkey string
+	Port    string
 }
 
-func NewSettingsWith(rp, lp, pk, ru string) (s Settings, err error) {
-	rp = defaultVal(rp, "8080")
-	lp = defaultVal(lp, "1080")
-	pk = defaultVal(pk, "AwayPasskey")
-	ru = defaultVal(ru, "http://localhost:"+rp)
-
-	var srp, slp int
-	srp, err = strconv.Atoi(rp)
-	if err != nil {
-		err = errors.New("wrong -rp " + err.Error())
-		return
+func ExistSetting(filename string) bool {
+	if _, err := os.Stat(filename); err == nil {
+		return true
 	}
-	ra := net.TCPAddr{Port: srp}
-	slp, err = strconv.Atoi(lp)
-	if err != nil {
-		err = errors.New("wrong -lp " + err.Error())
-		return
-	}
-	la := net.TCPAddr{Port: slp}
-
-	var u *url.URL
-	u, err = url.Parse(ru)
-	scheme := "ws"
-	ori := u.String()
-	if u.Scheme == "https" {
-		scheme = "wss"
-	}
-	rmo := scheme + "://" + u.Host + "/_a"
-
-	var sec *Security
-	sec, err = NewSecurity(pk)
-	if err != nil {
-		return
-	}
-
-	s = Settings{ra, la, rmo, ori, sec}
-	return s, nil
+	return false
 }
 
-func defaultVal(origin, value string) string {
-	if origin != "" {
-		return origin
+func ReadSettings(filename string) (rs *Settings, err error) {
+	f, err := os.Open(filename)
+	if err != nil {
+		return nil, err
 	}
-	return value
+	defer f.Close()
+
+	var obj = new(Settings)
+	dc := gob.NewDecoder(f)
+	if err := dc.Decode(obj); err != nil {
+		return nil, err
+	}
+	return obj, nil
+}
+
+func WriteSettings(rs *Settings, filename string) (err error) {
+	if err := os.MkdirAll(filepath.Dir(filename), os.ModePerm); err != nil {
+		return err
+	}
+
+	tmp := filename + "." + strconv.Itoa(time.Now().Nanosecond())
+	tmpf, err := os.Create(tmp)
+	if err != nil {
+		return err
+	}
+	defer tmpf.Close()
+
+	ec := gob.NewEncoder(tmpf)
+	if err := ec.Encode(rs); err != nil {
+		return err
+	}
+
+	if err = tmpf.Close(); err != nil {
+		return err
+	}
+	return os.Rename(tmp, filename)
 }
