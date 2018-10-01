@@ -52,7 +52,7 @@ func startSocks(lp, pk, rp, ru, rf string) {
 		Port:    lp,
 	}
 
-	away := NewAway(ModeRule, rf)
+	away := NewAway(ModeAway, rf)
 	if rf != "" {
 		n, err := away.LoadRules()
 		if err != nil {
@@ -60,8 +60,8 @@ func startSocks(lp, pk, rp, ru, rf string) {
 		} else {
 			log.Infof("Initilize [%d] rules.", n)
 		}
-		if n <= 0 {
-			away.ChangeMode(ModeAway)
+		if n > 0 {
+			away.ChangeMode(ModeRule)
 		}
 	}
 
