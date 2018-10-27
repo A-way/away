@@ -258,40 +258,51 @@ func reply(conn net.Conn, rep byte) (int, error) {
 func (s *SocksSrv) route(conn net.Conn, addr *Addr, mode rune) {
 	log.Infof("%c %s->%s", mode, conn.RemoteAddr().String(), addr.String())
 
-	var ac net.Conn
-	if mode == ModeRule || mode == ModePass {
-		dc, err := net.Dial(addr.Network(), addr.String())
-		if err != nil {
-			log.Warnf("Dial %s failure: %s", addr.String(), err)
-			return
-		}
-		ac = dc
-		defer ac.Close()
-
-	} else if mode == ModeAway {
-		ws, err := websocket.Dial(s.remote, "", s.origin)
-		if err != nil {
-			log.Warn("Remote dial failure: ", err)
-			return
-		}
-		ac = s.security.secure(ws)
-		defer ac.Close()
-
-		if _, err := ac.Write(addr.addr); err != nil {
-			log.Warn("Write addr failure: ", err)
-			return
-		}
-	} else {
+	if mode == ModeDrop {
 		conn.Close()
 		log.Infof("%c %s", mode, addr.String())
 		return
 	}
+
+	var ac net.Conn
+	var err error
+	if mode == ModeRule {
+		timeout := 5 * time.Second
+		ac, err = net.DialTimeout(addr.Network(), addr.String(), timeout)
+		if e, ok := err.(net.Error); ok && e.Timeout() { // we choose to fall through to away mode
+			ac, err = s.dialRemote(addr)
+			mode = ModeAway
+		}
+	} else if mode == ModeAway {
+		ac, err = s.dialRemote(addr)
+	} else if mode == ModePass {
+		ac, err = net.Dial(addr.Network(), addr.String())
+	}
+	if err != nil {
+		log.Warnf("Dial %c %s failure: %s", mode, addr.String(), err)
+		return
+	}
+	defer ac.Close()
 
 	nout, nin, err := relay(ac, conn)
 	if err != nil {
 		log.Warn("Relay remote failure: ", err)
 	}
 	log.Infof("%c %s->%s <%d %d>", mode, conn.RemoteAddr().String(), addr.String(), nin, nout)
+}
+
+func (s *SocksSrv) dialRemote(addr *Addr) (net.Conn, error) {
+	ws, err := websocket.Dial(s.remote, "", s.origin)
+	if err != nil {
+		return nil, err
+	}
+	ac := s.security.secure(ws)
+
+	if _, err := ac.Write(addr.addr); err != nil {
+		ac.Close()
+		return nil, err
+	}
+	return ac, nil
 }
 
 type relayResult struct {
