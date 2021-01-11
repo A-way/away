@@ -1,11 +1,10 @@
 <h1 align="center">
-    <img src="asset/static/away.png" alt="Away" width="256">
-    <div style="font-size: 48px;font-family: monospace;color: #7F78C8;">A way to Away!</div>
+    <a href=""><img src="asset/static/away.png" alt="Away" width="200"></a><br>
+    <code>A way to Away!</code>
 </h1>
 
 ## Getting started
 
-Away started with Go 1.9. We recommend installing Go 1.9+.
 
 ### Installation
 
