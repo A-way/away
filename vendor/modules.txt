@@ -1,0 +1,28 @@
+# github.com/onsi/ginkgo v1.14.2
+## explicit
+# github.com/onsi/gomega v1.10.4
+## explicit
+# github.com/sirupsen/logrus v1.0.5-0.20180213143110-8c0189d9f6bb
+## explicit
+github.com/sirupsen/logrus
+github.com/sirupsen/logrus/hooks/syslog
+# github.com/stretchr/testify v1.6.1
+## explicit
+# golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
+## explicit
+golang.org/x/crypto/pbkdf2
+golang.org/x/crypto/ssh/terminal
+# golang.org/x/net v0.0.0-20201202161906-c7110b5ffcbb
+## explicit
+golang.org/x/net/websocket
+# golang.org/x/sys v0.0.0-20200930185726-fdedc70b468f
+golang.org/x/sys/internal/unsafeheader
+golang.org/x/sys/unix
+golang.org/x/sys/windows
+# gopkg.in/airbrake/gobrake.v2 v2.0.9
+## explicit
+# gopkg.in/gemnasium/logrus-airbrake-hook.v2 v2.1.2
+## explicit
+# golang.org/x/crypto v0.0.0-20180119165957-a66000089151 => github.com/golang/crypto v0.0.0-20180119165957-a66000089151
+# golang.org/x/net v0.0.0-20180112015858-5ccada7d0a7b => github.com/golang/net v0.0.0-20180112015858-5ccada7d0a7b
+# golang.org/x/sys v0.0.0-20180202135801-37707fdb30a5 => github.com/golang/sys v0.0.0-20180202135801-37707fdb30a5
